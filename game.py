@@ -18,9 +18,9 @@ class SplendorGame:
         self.cards_in_deck = self.cards
 
         # players
-        self.active_player = [False for _ in range(self.players_number)]
+        self.active_player = -1
         self.players_cards = [[] for _ in range(self.players_number)]
-        self.players_points = [[] for _ in range(self.players_number)]
+        self.players_points = [0 for _ in range(self.players_number)]
         self.players_tokens = [[0 for _ in range(len(self.token))] for _ in range(self.players_number)]
         self.players_reserve = [[None for _ in range(3)] for _ in range(self.players_number)]
         
@@ -62,6 +62,26 @@ class SplendorGame:
         self.log(player, "Reserve a card")
         return True
     
+    def startGame(self):
+        # main loop
+        round = 1
+        while True:
+            for index, player in enumerate(self.players, start=0):
+                self.active_player = player
+                print(f"Round: {round}, player: {player}")
+            round += 1
+            for points in self.players_points:
+                if points >= 15: break
+            if round > 5: break
+        return True
+    
+    def botRandomTurn(self, player_id):
+        # check if can buy
+        for tier in self.cards:
+            for card in tier:
+                for token_index in range(1, 6):
+                    discount = sum([1 for card in self.players_cards[player_id] if card[-1] == token_index])
+                    if self.players_tokens[player_id][token_index] + discount - card[token_index] < 0: continue
 
 t = SplendorGame()
 t.players_cards = [[[1, 0, 4, 0, 0, 0, 5],[0, 1, 1, 1, 0, 1, 4]], [[2, 0, 0, 5, 3, 0, 5],[3, 0, 0, 0, 0, 6, 5]]]
@@ -69,7 +89,9 @@ t.players_cards = [[[1, 0, 4, 0, 0, 0, 5],[0, 1, 1, 1, 0, 1, 4]], [[2, 0, 0, 5, 
 # print(t.players_points)
 # t.update_players_points()
 # print(t.players_points)
-print(t.board)
-print(t.players_tokens)
-t.take_tokens(0, [1, 1, 1, 0, 0, 0])
-print(t.players_tokens)
+# print(t.board)
+# print(t.players_tokens)
+# t.take_tokens(0, [1, 1, 1, 0, 0, 0])
+# print(t.players_tokens)
+# t.startGame()
+t.botRandomTurn(1)
