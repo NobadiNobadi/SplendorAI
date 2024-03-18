@@ -9,7 +9,7 @@ class SplendorGame:
         self.players = players
         self.cards = cards
         self.nobles = nobles
-        self.token_max_qty = token_max_qty
+        self.token = token_max_qty
         self.logHistory = []
 
         # game
@@ -21,22 +21,46 @@ class SplendorGame:
         self.active_player = [False for _ in range(self.players_number)]
         self.players_cards = [[] for _ in range(self.players_number)]
         self.players_points = [[] for _ in range(self.players_number)]
-        self.players_tokens = [[0 for _ in range(len(self.token_max_qty))] for _ in range(self.players_number)]
+        self.players_tokens = [[0 for _ in range(len(self.token))] for _ in range(self.players_number)]
+        self.players_reserve = [[None for _ in range(3)] for _ in range(self.players_number)]
         
-    def log(self, round, player, action):
-        self.logHistory.append([round, player, action])
+    def log(self, player, action):
+        self.logHistory.append([self.turn_counter, player, action])
 
     def update_players_points(self):
         self.players_points = [sum(card[0] for card in player) for player in self.players_cards]
         return True
 
-    def take_tokens(self, player, tokens_array):
+    def take_tokens(self, player, tokens):
         for i in range(len(self.players_tokens[player])):
-            self.players_tokens[player][i] += tokens_array[i]
+            self.players_tokens[player][i] += tokens[i]
+        
+        self.log(player, "Take tokens")
         return True
 
-    def buy_card(self, player, tier, col_num):
-        return False
+    def buy_card(self, player, tier, col_num, tokens):
+        self.players_cards[player].append(self.board[tier][col_num])
+        self.board[tier][col_num] = None
+        for i in range(len(self.players_tokens[player])):
+            self.players_tokens[player][i] -= tokens[i]
+
+        self.log(player, "Buy a card") 
+        return True
+    
+    def refill_board(self):
+        for tier in self.board:
+            for col in tier:
+                if col is None: self.board[tier][col] = self.cards_in_deck[0] 
+        self.cards_in_deck.pop[0]
+        return True
+    
+    def reserve_card(self, player, tier, col_num):
+        self.players_cards[player].append(self.board[tier][col_num])
+        self.board[tier][col_num] = None
+        if self.tokens[-1] > 1: self.players_tokens[player][-1] += 1
+
+        self.log(player, "Reserve a card")
+        return True
     
 
 t = SplendorGame()
