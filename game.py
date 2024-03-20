@@ -1,4 +1,6 @@
 from components import nobles, cards, token_max_qty
+import time
+import random
 
 
 class SplendorGame:
@@ -9,19 +11,18 @@ class SplendorGame:
         self.players = players
         self.cards = cards
         self.nobles = nobles
-        self.token = token_max_qty
+        self.tokens = token_max_qty
         self.logHistory = []
 
         # game
         self.turn_counter = 0
         self.board = [[[None] for _ in range(4)] for _ in range(len(self.cards))]
-        self.cards_in_deck = self.cards
 
         # players
         self.active_player = -1
         self.players_cards = [[] for _ in range(self.players_number)]
         self.players_points = [0 for _ in range(self.players_number)]
-        self.players_tokens = [[0 for _ in range(len(self.token))] for _ in range(self.players_number)]
+        self.players_tokens = [[0 for _ in range(len(self.tokens))] for _ in range(self.players_number)]
         self.players_reserve = [[None for _ in range(3)] for _ in range(self.players_number)]
         
     def log(self, player, action):
@@ -31,27 +32,28 @@ class SplendorGame:
         self.players_points = [sum(card[0] for card in player) for player in self.players_cards]
         return True
 
-    def take_tokens(self, player, tokens):
-        for i in range(len(self.players_tokens[player])):
-            self.players_tokens[player][i] += tokens[i]
+    # def take_tokens(self, player, tokens):
+    #     for i in range(len(self.players_tokens[player])):
+    #         self.players_tokens[player][i] += tokens[i]
         
-        self.log(player, "Take tokens")
-        return True
+    #     self.log(player, "Take tokens")
+    #     return True
 
-    def buy_card(self, player, tier, col_num, tokens):
+    def buy_card(self, player, tier, col_num):
+        for i in range(0,5):
+            self.players_tokens[player][i] -= (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
         self.players_cards[player].append(self.board[tier][col_num])
-        self.board[tier][col_num] = None
-        for i in range(len(self.players_tokens[player])):
-            self.players_tokens[player][i] -= tokens[i]
-
+        self.board[tier][col_num] = [None]
         self.log(player, "Buy a card") 
+        self.refill_board()
         return True
     
     def refill_board(self):
-        for tier in self.board:
-            for col in tier:
-                if col is None: self.board[tier][col] = self.cards_in_deck[0] 
-        self.cards_in_deck.pop[0]
+        for tier_index, tier in enumerate(self.board, start=0):
+            for col_index, col in enumerate(tier, start=0):
+                if col[0] is None:      
+                    self.board[tier_index][col_index] = self.cards[tier_index][0]
+                self.cards[tier_index].pop(0)
         return True
     
     def reserve_card(self, player, tier, col_num):
@@ -62,6 +64,11 @@ class SplendorGame:
         self.log(player, "Reserve a card")
         return True
     
+    def setupBoard(self):
+        for tier in range(len(self.cards)):
+            random.shuffle(self.cards[tier])
+        self.refill_board()
+
     def startGame(self):
         # main loop
         round = 1
@@ -69,22 +76,79 @@ class SplendorGame:
             for index, player in enumerate(self.players, start=0):
                 self.active_player = player
                 print(f"Round: {round}, player: {player}")
+                time.sleep(1)
             round += 1
             for points in self.players_points:
                 if points >= 15: break
             if round > 5: break
         return True
     
+    def printBoard(self):
+        print(f"Tier 1: {[card for card in self.board[0]]}")
+        print(f"Tier 2: {[card for card in self.board[1]]}")
+        print(f"Tier 3: {[card for card in self.board[2]]}")
+
     def botRandomTurn(self, player_id):
+        # print("bot is thinking")
+        time.sleep(1)
+
         # check if can buy
-        for tier in self.cards:
-            for card in tier:
+        for tier_index, tier in enumerate(self.board, start=0):
+            for index, card in enumerate(tier, start=0):
+                not_enough = False
                 for token_index in range(1, 6):
                     discount = sum([1 for card in self.players_cards[player_id] if card[-1] == token_index])
-                    if self.players_tokens[player_id][token_index] + discount - card[token_index] < 0: continue
+                    # print(f"{discount} for {token_index}")
+                    if self.players_tokens[player_id][token_index-1] + discount - card[token_index] < 0: not_enough = True
+                if not_enough: continue
+                print(f"Bot bought a card: {self.board[tier_index][index]}")
+                self.buy_card(player_id, tier_index, index)
+                return 
+        # take tokens random tokens
+        random_order = [0, 1, 2, 3, 4]
+        random.shuffle(random_order)
+        
+        taken_tokens = [0, 0, 0, 0, 0, 0]
+        while True:
+            if random.randint(0, 1) > 0: # take two
+                for index in random_order:
+                    if self.tokens[index] > 4: 
+                        self.players_tokens[player_id][index] += 2
+                        self.tokens[index] -= 2
+                        taken_tokens[index] += 2
+                        print(f"Bot took tokens: {taken_tokens}")
+                        while sum([qty for qty in self.players_tokens[player_id]]) > 10:
+                            random_order = [0, 1, 2, 3, 4]
+                            random.shuffle(random_order)
+                            index = random_order[0]
+                            if self.players_tokens[player_id][index] > 0: self.players_tokens[player_id][index] -= 1
+                        return
+                continue
+            else:
+                taken = 0
+                for index in random_order:
+                    if self.tokens[index] > 0:
+                        self.players_tokens[player_id][index] += 1
+                        self.tokens[index] -= 1
+                        taken_tokens[index] += 1
+                        taken += 1
+                        if taken == 3: 
+                            print(f"Bot took tokens: {taken_tokens}")
+                            while sum([qty for qty in self.players_tokens[player_id]]) > 10:
+                                random_order = [0, 1, 2, 3, 4]
+                                random.shuffle(random_order)
+                                index = random_order[0]
+                                if self.players_tokens[player_id][index] > 0: self.players_tokens[player_id][index] -= 1
+                            return
+            
+
+                 
+
+                
+
 
 t = SplendorGame()
-t.players_cards = [[[1, 0, 4, 0, 0, 0, 5],[0, 1, 1, 1, 0, 1, 4]], [[2, 0, 0, 5, 3, 0, 5],[3, 0, 0, 0, 0, 6, 5]]]
+# t.players_cards = [[[1, 0, 4, 0, 0, 0, 5],[0, 1, 1, 1, 0, 1, 4]], [[2, 0, 0, 5, 3, 0, 5],[3, 0, 0, 0, 0, 6, 5]]]
 # print(t.players_cards)
 # print(t.players_points)
 # t.update_players_points()
@@ -94,4 +158,15 @@ t.players_cards = [[[1, 0, 4, 0, 0, 0, 5],[0, 1, 1, 1, 0, 1, 4]], [[2, 0, 0, 5, 
 # t.take_tokens(0, [1, 1, 1, 0, 0, 0])
 # print(t.players_tokens)
 # t.startGame()
+# print(t.board)
+t.setupBoard()
+t.printBoard()
+# print(t.players_cards)
+# print(t.players_tokens)
 t.botRandomTurn(1)
+t.botRandomTurn(1)
+t.botRandomTurn(1)
+t.botRandomTurn(1)
+t.botRandomTurn(1)
+print(t.players_cards)
+print(t.players_tokens)
