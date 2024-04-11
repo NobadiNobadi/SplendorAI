@@ -121,4 +121,5 @@ nobles = [
     [3, 0, 3, 3, 3, 0],
 ]
 
-token_max_qty = [7, 7, 7, 7, 7, 5]
+# token_max_qty = [7, 7, 7, 7, 7, 5]
+token_max_qty = [7, 7, 7, 7, 7]
