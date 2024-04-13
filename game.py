@@ -11,7 +11,7 @@ class SplendorGame:
         self.players = players
         self.cards = cards
         self.nobles = nobles
-        self.tokens = token_max_qty
+        self.tokens = [qty-4+len(self.players) for qty in token_max_qty]
         self.logHistory = []
 
         # game
@@ -23,7 +23,6 @@ class SplendorGame:
         self.players_cards = [[] for _ in range(self.players_number)]
         self.players_points = [0 for _ in range(self.players_number)]
         self.players_tokens = [[0 for _ in range(len(self.tokens))] for _ in range(self.players_number)]
-        self.players_reserve = [[None for _ in range(3)] for _ in range(self.players_number)]
         
     def log(self, player, action):
         self.logHistory.append([self.turn_counter, player, action])
@@ -42,10 +41,12 @@ class SplendorGame:
     def buy_card(self, player, tier, col_num):
         for i in range(0,5):
             self.players_tokens[player][i] -= (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
+            self.tokens[i] += (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
         self.players_cards[player].append(self.board[tier][col_num])
         self.board[tier][col_num] = [None]
         self.log(player, "Buy a card") 
         self.refill_board()
+        self.printBoard()
         return True
     
     def refill_board(self):
@@ -53,16 +54,9 @@ class SplendorGame:
             for col_index, col in enumerate(tier, start=0):
                 if col[0] is None:      
                     self.board[tier_index][col_index] = self.cards[tier_index][0]
-                self.cards[tier_index].pop(0)
+                    self.cards[tier_index].pop(0)
         return True
-    
-    def reserve_card(self, player, tier, col_num):
-        self.players_cards[player].append(self.board[tier][col_num])
-        self.board[tier][col_num] = None
-        if self.tokens[-1] > 1: self.players_tokens[player][-1] += 1
 
-        self.log(player, "Reserve a card")
-        return True
     
     def setupBoard(self):
         for tier in range(len(self.cards)):
@@ -74,13 +68,17 @@ class SplendorGame:
         round = 1
         while True:
             # print(len(self.cards[0]))
+            print(f"\nTurn {round}")
             for index, player in enumerate(self.players, start=0):
                 self.active_player = player
                 self.botRandomTurn(index)
             round += 1
             self.update_players_points()
-            for points in self.players_points:
-                if points >= 15: break
+            for player_index, points in enumerate(self.players_points, start=0):
+                if points >= 1: 
+                    print(f"Game has been ended, {self.players[player_index]}")
+
+                    return True
             # if round > 5: break
         return True
     
@@ -91,7 +89,7 @@ class SplendorGame:
 
     def botRandomTurn(self, player_id):
         # print("bot is thinking")
-        time.sleep(1)
+        # time.sleep(1)
 
         # check if can buy
         for tier_index, tier in enumerate(self.board, start=0):
@@ -105,12 +103,19 @@ class SplendorGame:
                 print(f"{self.players[player_id]} bought a card: {self.board[tier_index][index]}")
                 self.buy_card(player_id, tier_index, index)
                 return 
-        # take tokens random tokens
+            
+        # take random tokens
         random_order = [0, 1, 2, 3, 4]
         random.shuffle(random_order)
         
+        debugger = 0
         taken_tokens = [0, 0, 0, 0, 0]
         while True:
+            debugger += 1
+            if debugger > 10:
+                # print(f"{self.board}\n{self.cards}\n{self.players_cards}")
+                time.sleep(5)
+                return
             if random.randint(0, 1) > 0: # take two
                 for index in random_order:
                     if self.tokens[index] > 4: 
@@ -152,6 +157,7 @@ t = SplendorGame()
 t.setupBoard()
 print(len(t.cards[0]))
 t.printBoard()
+print(t.tokens)
 t.startGame()
 # print(t.cards[0][0])
 # print(t.cards)
