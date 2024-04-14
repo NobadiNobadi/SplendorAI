@@ -7,10 +7,10 @@ class SplendorGame:
     def __init__(self, players=["Bob", "Steve"], cards=cards, nobles=nobles, token_max_qty=token_max_qty):
         
         # setup
-        self.players_number = len(players)
         self.players = players
+        self.players_number = len(self.players)
         self.cards = cards
-        self.nobles = nobles
+        self.nobles = random.sample(nobles, len(self.players)+1)
         self.tokens = [qty-4+len(self.players) for qty in token_max_qty]
         self.logHistory = []
 
@@ -23,12 +23,16 @@ class SplendorGame:
         self.players_cards = [[] for _ in range(self.players_number)]
         self.players_points = [0 for _ in range(self.players_number)]
         self.players_tokens = [[0 for _ in range(len(self.tokens))] for _ in range(self.players_number)]
+        self.players_nobles = [[] for _ in range(self.players_number)]
         
     def log(self, player, action):
         self.logHistory.append([self.turn_counter, player, action])
 
     def update_players_points(self):
         self.players_points = [sum(card[0] for card in player) for player in self.players_cards]
+        for player_index, player in enumerate(self.players_points,start=0):
+            for noble in self.players_nobles[player_index]:
+                self.players_points[player_index] += noble[0]
         return True
 
     # def take_tokens(self, player, tokens):
@@ -65,14 +69,28 @@ class SplendorGame:
 
     def startGame(self):
         # main loop
-        round = 1
+        round = 0
         while True:
+            round += 1
             # print(len(self.cards[0]))
             print(f"\nTurn {round}")
-            for index, player in enumerate(self.players, start=0):
+            for player_index, player in enumerate(self.players, start=0):
                 self.active_player = player
-                self.botRandomTurn(index)
-            round += 1
+                self.botRandomTurn(player_index)
+                # noble check
+                nobles_to_take = []
+                for noble_index, noble in enumerate(self.nobles, start=0):
+                    take_noble = True
+                    for i in range(0, 5):
+                        if not sum([1 for card in self.players_cards[player_index] if card[-1] == i]) >= noble[i+1]: take_noble = False    
+                    if take_noble: nobles_to_take.append(noble_index)
+                if nobles_to_take: 
+                    random_noble = random.choice(nobles_to_take)
+                    print(f"{self.players[player_index]} took noble {self.nobles[random_noble]}")
+                    self.players_nobles[player_index].append(random_noble)    
+                    del self.nobles[random_noble]
+                    
+                    
             self.update_players_points()
             for player_index, points in enumerate(self.players_points, start=0):
                 if points >= 1: 
@@ -127,7 +145,11 @@ class SplendorGame:
                             random_order = [0, 1, 2, 3, 4]
                             random.shuffle(random_order)
                             index = random_order[0]
-                            if self.players_tokens[player_id][index] > 0: self.players_tokens[player_id][index] -= 1
+                            if self.players_tokens[player_id][index] > 0: 
+                                drop_tokens = [0, 0, 0, 0, 0]
+                                self.players_tokens[player_id][index] -= 1
+                                drop_tokens[index] = 1
+                                print(f"{self.players[player_id]} drop token: {drop_tokens}")
                         return
                 continue
             else:
@@ -144,7 +166,11 @@ class SplendorGame:
                                 random_order = [0, 1, 2, 3, 4]
                                 random.shuffle(random_order)
                                 index = random_order[0]
-                                if self.players_tokens[player_id][index] > 0: self.players_tokens[player_id][index] -= 1
+                                if self.players_tokens[player_id][index] > 0: 
+                                    drop_tokens = [0, 0, 0, 0, 0]
+                                    self.players_tokens[player_id][index] -= 1
+                                    drop_tokens[index] = 1
+                                    print(f"{self.players[player_id]} drop token: {drop_tokens}")
                             return
             
 
@@ -155,9 +181,10 @@ class SplendorGame:
 
 t = SplendorGame()
 t.setupBoard()
-print(len(t.cards[0]))
+# print(len(t.cards[0]))
 t.printBoard()
 print(t.tokens)
+print(t.nobles)
 t.startGame()
 # print(t.cards[0][0])
 # print(t.cards)
