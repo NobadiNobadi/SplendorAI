@@ -43,16 +43,37 @@ class SplendorGame:
     #     return True
 
     def buy_card(self, player, tier, col_num):
+        can_buy = True
         for i in range(0,5):
-            self.players_tokens[player][i] -= (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
-            self.tokens[i] += (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
-        self.players_cards[player].append(self.board[tier][col_num])
-        self.board[tier][col_num] = [None]
-        self.log(player, "Buy a card") 
-        self.refill_board()
-        self.printBoard()
-        return True
-    
+            if self.players_tokens[player][i] - (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i])) < 0: can_buy = False
+        if can_buy:
+            for i in range(0,5):
+                self.players_tokens[player][i] -= (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
+                self.tokens[i] += (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
+            self.players_cards[player].append(self.board[tier][col_num])
+            self.board[tier][col_num] = [None]
+            self.log(player, "Buy a card") 
+            self.refill_board()
+            return True
+        else:
+            return False
+        
+    def take_tokens(self, player_id, white, blue, green, red, black):
+        token_array = [white, blue, green, red, black]
+        if (
+            (sum(token_array) == 3 and all(0 <= x <= 1 for x in token_array) # check if only 3 tokens, max 1 per color
+            and all(self.tokens[color] - token_array[color] >= 0 for color in range(0, 5))) # check if there are not negative qty. of tokens
+        or (sum(1 for x in token_array if x == 2) == 1 and sum(1 for x in token_array if x == 0) == len(token_array) - 1 # check if only 2 tokens, 2 in the same color
+            and self.tokens[token_array.index(2)] - 2 >= 2) # check if there are at least 2 token of taken color
+            ):   
+            for color in range(0,5):
+                self.players_tokens[player_id][color] += token_array[color]
+                self.tokens[color] -= token_array[color]
+            print(f"Player {self.players[player_id]} took tokens: {token_array}")          
+            return True
+        else:
+            return False
+
     def refill_board(self):
         for tier_index, tier in enumerate(self.board, start=0):
             for col_index, col in enumerate(tier, start=0):
@@ -173,7 +194,15 @@ class SplendorGame:
                                     print(f"{self.players[player_id]} drop token: {drop_tokens}")
                             return
             
-
+    def playerTurn(self, player_id):
+        # choose action
+        action = None
+        # 1 - take tokens, 2 - buy a card
+        while action not in [1, 2, 3]: 
+            action = int(input("Please choose an action: \n1 - to take tokens\n2 - to buy a card\n3 - to show a board\n"))
+        
+        if action == 3: self.printBoard()
+        
                  
 
                 
@@ -183,9 +212,10 @@ t = SplendorGame()
 t.setupBoard()
 # print(len(t.cards[0]))
 t.printBoard()
-print(t.tokens)
-print(t.nobles)
-t.startGame()
+t.playerTurn(1)
+# print(t.tokens)
+# print(t.nobles)
+# t.startGame()
 # print(t.cards[0][0])
 # print(t.cards)
 # t.printBoard()
