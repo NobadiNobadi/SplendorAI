@@ -35,21 +35,16 @@ class SplendorGame:
                 self.players_points[player_index] += noble[0]
         return True
 
-    # def take_tokens(self, player, tokens):
-    #     for i in range(len(self.players_tokens[player])):
-    #         self.players_tokens[player][i] += tokens[i]
-        
-    #     self.log(player, "Take tokens")
-    #     return True
-
     def buy_card(self, player, tier, col_num):
         can_buy = True
         for i in range(0,5):
-            if self.players_tokens[player][i] - (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i])) < 0: can_buy = False
+            discount = min(sum([1 for card in self.players_cards[player] if card[-1] == i+1]),self.board[tier][col_num][i+1])
+            if self.players_tokens[player][i] - (self.board[tier][col_num][i+1] - discount) < 0: can_buy = False # if can buy
         if can_buy:
             for i in range(0,5):
-                self.players_tokens[player][i] -= (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
-                self.tokens[i] += (self.board[tier][col_num][i+1] - sum([1 for card in self.players_cards[player] if card[-1] == i]))
+                discount = min(sum([1 for card in self.players_cards[player] if card[-1] == i+1]),self.board[tier][col_num][i+1])
+                self.players_tokens[player][i] -= (self.board[tier][col_num][i+1] - discount)
+                self.tokens[i] += (self.board[tier][col_num][i+1] - discount)
             self.players_cards[player].append(self.board[tier][col_num])
             self.board[tier][col_num] = [None]
             self.log(player, "Buy a card") 
@@ -58,8 +53,7 @@ class SplendorGame:
         else:
             return False
         
-    def take_tokens(self, player_id, white, blue, green, red, black):
-        token_array = [white, blue, green, red, black]
+    def take_tokens(self, player_id, token_array):
         if (
             (sum(token_array) == 3 and all(0 <= x <= 1 for x in token_array) # check if only 3 tokens, max 1 per color
             and all(self.tokens[color] - token_array[color] >= 0 for color in range(0, 5))) # check if there are not negative qty. of tokens
@@ -81,40 +75,52 @@ class SplendorGame:
                     self.board[tier_index][col_index] = self.cards[tier_index][0]
                     self.cards[tier_index].pop(0)
         return True
-
-    
-    def setupBoard(self):
-        for tier in range(len(self.cards)):
-            random.shuffle(self.cards[tier])
-        self.refill_board()
+   
+    def setupBoard(self, predefined):
+        if predefined:
+            for tier in range(0, 3):
+                for col_index, col in enumerate(predefined[tier], start=0):
+                    self.board[tier][col_index] = self.cards[tier][col]
+            for tier in range(0, 3):
+                for col in sorted(predefined[tier], reverse=True):
+                    del self.cards[tier][col]
+        else:
+            for tier in range(len(self.cards)):
+                random.shuffle(self.cards[tier])
+            self.refill_board()
+        return True
 
     def startGame(self):
         # main loop
         round = 0
+        print(f"Players {self.players}")
         while True:
             round += 1
             # print(len(self.cards[0]))
             print(f"\nTurn {round}")
             for player_index, player in enumerate(self.players, start=0):
                 self.active_player = player
-                self.botRandomTurn(player_index)
-                # noble check
-                nobles_to_take = []
-                for noble_index, noble in enumerate(self.nobles, start=0):
-                    take_noble = True
-                    for i in range(0, 5):
-                        if not sum([1 for card in self.players_cards[player_index] if card[-1] == i]) >= noble[i+1]: take_noble = False    
-                    if take_noble: nobles_to_take.append(noble_index)
-                if nobles_to_take: 
-                    random_noble = random.choice(nobles_to_take)
-                    print(f"{self.players[player_index]} took noble {self.nobles[random_noble]}")
-                    self.players_nobles[player_index].append(random_noble)    
-                    del self.nobles[random_noble]
+                if player == "Bot":
+                    self.botRandomTurn(player_index)
+                else:
+                    self.playerTurn(player_index)
+                # # noble check
+                # nobles_to_take = []
+                # for noble_index, noble in enumerate(self.nobles, start=0):
+                #     take_noble = True
+                #     for i in range(0, 5):
+                #         if not sum([1 for card in self.players_cards[player_index] if card[-1] == i]) >= noble[i+1]: take_noble = False    
+                #     if take_noble: nobles_to_take.append(noble_index)
+                # if nobles_to_take: 
+                #     random_noble = random.choice(nobles_to_take)
+                #     print(f"{self.players[player_index]} took noble {self.nobles[random_noble]}")
+                #     self.players_nobles[player_index].append(random_noble)    
+                #     del self.nobles[random_noble]
                     
                     
             self.update_players_points()
             for player_index, points in enumerate(self.players_points, start=0):
-                if points >= 1: 
+                if points >= 5: 
                     print(f"Game has been ended, {self.players[player_index]}")
 
                     return True
@@ -126,7 +132,22 @@ class SplendorGame:
         print(f"Tier 2: {[card for card in self.board[1]]}")
         print(f"Tier 3: {[card for card in self.board[2]]}")
 
-    def botRandomTurn(self, player_id):
+    def printPlayersCards(self):
+        for player_id, player in enumerate(self.players, start=0):
+            print(f"Player {player}: {self.players_cards[player_id]}")
+
+    def printPlayersTokens(self):
+        for player_id, player in enumerate(self.players, start=0):
+            print(f"Player {player}: {self.players_tokens[player_id]}")                     
+
+    def printPlayersDiscounts(self):
+        for player_id, player in enumerate(self.players, start=0):
+            discounts = [0, 0, 0, 0, 0]
+            for token_id in range(1, 6):
+                discounts[token_id-1] += sum([1 for card in self.players_cards[player_id] if card[-1] == token_id])
+            print(f"Player {player}: {discounts}")    
+
+    def botRandomTurn_old(self, player_id):
         # print("bot is thinking")
         # time.sleep(1)
 
@@ -198,24 +219,108 @@ class SplendorGame:
         # choose action
         action = None
         # 1 - take tokens, 2 - buy a card
-        while action not in [1, 2, 3]: 
-            action = int(input("Please choose an action: \n1 - to take tokens\n2 - to buy a card\n3 - to show a board\n"))
+        while action not in [1, 2]: 
+            try:
+                action = int(input("""Please choose an action: \n1 - to take tokens\n2 - to buy a card\n3 - to show a board\n4 - to show player's cards\n5 - to show player's tokens\n6 - to show player's discounts\n"""))
+            except:
+                print("wrong syntax")
+                continue
+            if action == 3: # print board
+                self.printBoard()
+            if action == 4: # print player's cards
+                self.printPlayersCards()
+            if action == 5: # print player's tokens
+                self.printPlayersTokens()
+            if action == 6: # print player's discounts
+                self.printPlayersDiscounts()
+        if action == 1: # take tokens
+            exit = False
+            while not exit:
+                try:
+                    token_array = list(input("Please choose tokens (numbers separated by comma):").split(","))
+                    token_array = [int(x) for x in token_array]
+                    if len(token_array) != 5: 0 + "0"
+                    if self.take_tokens(player_id, token_array):
+                        print(self.players_tokens[player_id])
+                        exit = True
+                    else:
+                        print("not allowed move")
+                except:
+                    print("wrong syntax")
+            while sum(self.players_tokens[player_id]) > 10:
+                token_id = 0
+                exit = False
+                while not exit and token_id not in [1, 2, 3, 4, 5]:
+                    try:
+                        token_id = int(input("Please choose token to discard (1-white,2-blue,3-green,4-red,5-black):"))
+                        exit = True
+                    except:
+                        print("wrong syntax")
+                if exit:
+                    self.discardToken(player_id, token_id-1)
+        elif action == 2: # buy a card
+            exit = False
+            while not exit:
+                try:
+                    card_index = list(input("Please input row and column index (separated by comma):").split(","))
+                    card_index = [int(x) for x in card_index]
+                    if len(card_index) != 2: 0 + "0"
+                    if self.buy_card(player_id,card_index[0]-1, card_index[1]-1):
+                        exit = True
+                    else:
+                        print("not allowed move")
+                except:
+                    print("wrong syntax")
+            
+    def discardToken(self, player_id, token_id):
+        if self.players_tokens[player_id][token_id] - 1 >= 0:
+            self.players_tokens[player_id][token_id] -= 1
+            self.tokens[token_id] += 1
+            discarded = [0, 0, 0, 0, 0]
+            discarded[token_id] = 1
+            print(f"Player {self.players[player_id]} discarded tokens: {discarded}")
+            return True
+        else:
+            return False
+
+    def botTurn(self, player_id):    
+        # parameters 
+        tier_value = [0.5, 0.35, 0.15]
+        token_value = [0, 0, 0, 0, 0]
+        token_qty = [0, 0, 0, 0, 0]
+
+        discount_value = 2.2
+        hard_to_buy = 0.008
+        owned_discount = 0.1
+
+        focus = [[tier, col, 0] for tier in range(0,3) for col in range(0,4)]
+
+        for tier in range(0, 3): # calculate focus on tokens
+            for col in range(0, 4):
+                for token in range(1, 6):
+                    token_qty[token-1] += self.board[tier][col][token]
+                    token_value[token-1] += self.board[tier][col][token] * tier_value[tier]
         
-        if action == 3: self.printBoard()
+        for tier in range(0, 3): # calculate focus on cards
+            for col in range(0, 4):
+                t1 = ((discount_value + self.board[tier][col][0]) / sum(self.board[tier][col][1:][:-1])) # discount val + vps / sum of tokens
+                t2 = sum([((qty-min(sum([1 for card in self.players_cards[player_id] if card[-1] == token_id+1]),self.board[tier][col][token_id+1]))**2)*hard_to_buy for token_id, qty in enumerate(self.board[tier][col][1:][:-1], start=0)]) # sum of particular (tokens qty-discounts)^2
+                t3 = sum([min(sum([1 for card in self.players_cards[player_id] if card[-1] == token_id+1]),self.board[tier][col][token_id+1]) for token_id in range(0,5)])*owned_discount # sum of owned discounts
+                focus[tier*4+col][-1] = t1 - t2 + t3
         
+        sorted_focus = sorted(focus, key=lambda x: x[2], reverse=True)
+        print(sorted_focus)
+        # print(token_value)
+        # print(token_qty)
+        return True
                  
 
                 
+predefined = [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]
 
-
-t = SplendorGame()
-t.setupBoard()
-# print(len(t.cards[0]))
+t = SplendorGame(players=["Olo"])
+t.setupBoard(predefined=predefined)
+t.players_cards[0].append([0, 1, 1, 1, 1, 0, 2])
+t.players_cards[0].append([0, 1, 1, 1, 1, 0, 2])
+t.botTurn(0)
 t.printBoard()
-t.playerTurn(1)
-# print(t.tokens)
-# print(t.nobles)
-# t.startGame()
-# print(t.cards[0][0])
-# print(t.cards)
-# t.printBoard()
