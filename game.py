@@ -314,6 +314,7 @@ class SplendorGame:
                 focus[tier*4+col][-1] = t1 - t2 + t3
         
         focus = sorted(focus, key=lambda x: x[2], reverse=True)  
+        focus = focus[:6]
 
         self.discount_value *= self.discount_value_in_time
 
