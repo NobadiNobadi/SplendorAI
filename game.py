@@ -388,10 +388,3 @@ class SplendorGame:
                         return True   
      
 
-                
-predefined = [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]
-
-t = SplendorGame(players=["Bot"])
-t.setupBoard(predefined=predefined)
-t.printBoard()
-t.startGame()
