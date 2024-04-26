@@ -5,7 +5,7 @@ import numpy as np
 
 
 class SplendorGame:
-    def __init__(self, players=["Bob", "Steve"], cards=cards, nobles=nobles, token_max_qty=token_max_qty, points=15):
+    def __init__(self, players=["Bob", "Steve"], cards=cards, nobles=nobles, token_max_qty=token_max_qty, points=15, predefined=False):
         
         # setup
         self.players = players
@@ -15,6 +15,7 @@ class SplendorGame:
         self.tokens = [qty-4+len(self.players) for qty in token_max_qty]
         self.logHistory = []
         self.points = points
+        self.predefined = predefined
 
         # game
         self.turn_counter = 0
@@ -83,16 +84,18 @@ class SplendorGame:
             for col_index, col in enumerate(tier, start=0):
                 if col[0] is None:      
                     self.board[tier_index][col_index] = self.cards[tier_index][0]
+                    temp = self.cards[tier_index][0]
                     self.cards[tier_index].pop(0)
+        print(f"New Card: {temp}")
         return True
    
-    def setupBoard(self, predefined):
-        if predefined:
+    def setupBoard(self):
+        if self.predefined:
             for tier in range(0, 3):
-                for col_index, col in enumerate(predefined[tier], start=0):
+                for col_index, col in enumerate(self.predefined[tier], start=0):
                     self.board[tier][col_index] = self.cards[tier][col]
             for tier in range(0, 3):
-                for col in sorted(predefined[tier], reverse=True):
+                for col in sorted(self.predefined[tier], reverse=True):
                     del self.cards[tier][col]
         else:
             for tier in range(len(self.cards)):
@@ -291,6 +294,11 @@ class SplendorGame:
             return False
 
     def botTurn(self, player_id):    
+        # debug
+        self.printPlayersTokens()
+        self.printPlayersCards()
+        self.printPlayersDiscounts()
+
         # parameters 
         token_value = [0, 0, 0, 0, 0]
         token_qty = [0, 0, 0, 0, 0]
@@ -323,9 +331,9 @@ class SplendorGame:
         for card in focus:
             if self.buy_card(player_id, card[0], card[1]): 
                 return True
+            
         # take tokens on focus
-
-        while True:
+        while True: 
             most_focus = [self.board[focus[0][0]][focus[0][1]], self.board[focus[1][0]][focus[1][1]]]
             first, second, discounts, tokens = np.array(most_focus[0][1:][:-1]), np.array(most_focus[1][1:][:-1]), np.array(self.playersDiscounts(player_id)), np.array(self.playersTokens(player_id))
             
@@ -386,6 +394,28 @@ class SplendorGame:
                     random_tokens = [0] * 2 + [1] * 3
                     random.shuffle(random_tokens)
                     if self.take_tokens(player_id, random_tokens):
-                        return True   
-     
+                        # check if has too many tokens
+                        while True:
+                            discard = False
+                            if sum(self.players_tokens[player_id]) <= 10:
+                                return True   
+                            else:
+                                tokens_random = list(range(5))
+                                random.shuffle(tokens_random)
+                                for token in tokens_random:
+                                    if self.players_tokens[player_id][token] > 0 and tokens_to_take[token] == 0:
+                                        self.discardToken(player_id,token)
+                                        discard = True
+                                        break
 
+                                if discard: continue
+                                
+                                token_focus.reverse()
+                                for token in token_focus:
+                                    if self.discardToken(player_id,token[0]):
+                                        break
+                                    
+                                
+                                    
+     
+        
