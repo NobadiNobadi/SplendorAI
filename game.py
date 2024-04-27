@@ -5,7 +5,8 @@ import numpy as np
 
 
 class SplendorGame:
-    def __init__(self, players=["Bob", "Steve"], cards=cards, nobles=nobles, token_max_qty=token_max_qty, points=15, predefined=False):
+    def __init__(self, players=["Bob", "Steve"], cards=cards, nobles=nobles, token_max_qty=token_max_qty, points=15, predefined=False, 
+                 discount_value=2.2, hard_to_buy=0.008, owned_discount=0.1, discount_value_in_time=0.95, tier1 = 0.5, tier2 = 0.35, tier3 = 0.15):
         
         # setup
         self.players = players
@@ -29,11 +30,11 @@ class SplendorGame:
         self.players_nobles = [[] for _ in range(self.players_number)]
 
         # bot parameters
-        self.discount_value = 2.2
-        self.hard_to_buy = 0.008
-        self.owned_discount = 0.1
-        self.discount_value_in_time = 0.95
-        self.tier_value = [0.5, 0.35, 0.15]
+        self.discount_value = discount_value
+        self.hard_to_buy = hard_to_buy
+        self.owned_discount = owned_discount
+        self.discount_value_in_time = discount_value_in_time
+        self.tier_value = [tier1, tier2, tier3]
         
     def log(self, player, action):
         self.logHistory.append([self.turn_counter, player, action])
@@ -106,7 +107,7 @@ class SplendorGame:
     def startGame(self):
         # main loop
         round = 0
-        print(f"Players {self.players}")
+        # print(f"Players {self.players}")
         while True:
             if round > 100: return False
             round += 1
@@ -123,7 +124,9 @@ class SplendorGame:
             self.update_players_points()
             for player_index, points in enumerate(self.players_points, start=0):
                 if points >= self.points: 
-                    return {"Player": self.active_player, "Points": points, "Rounds": round, "Cards": self.players_cards[player_index]}
+                    return {"Player": self.active_player, "Points": points, "Rounds": round, "Cards": self.players_cards[player_index], "DiscountsVal": self.discount_value,
+                            "HardToBuy": self.hard_to_buy, "OwnedDiscounts": self.owned_discount, "DiscountValInTime": self.discount_value_in_time,
+                            "Tier1": self.tier_value[0], "Tier2": self.tier_value[1], "Tier3": self.tier_value[2]}
                     # print(f"Game has been ended, {self.players[player_index]}")
                     # print(f"Points: {self.players_points}")
                     # print(f"Round: {round}")
