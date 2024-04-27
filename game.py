@@ -57,7 +57,7 @@ class SplendorGame:
                 self.tokens[i] += (self.board[tier][col_num][i+1] - discount)
             self.players_cards[player].append(self.board[tier][col_num])
             self.board[tier][col_num] = [None]
-            print(f"{self.players[player]} bought a card {self.players_cards[player][-1]}")
+            # print(f"{self.players[player]} bought a card {self.players_cards[player][-1]}")
             # self.log(player, "Buy a card") 
             self.refill_board()
             return True
@@ -74,7 +74,7 @@ class SplendorGame:
             for color in range(0,5):
                 self.players_tokens[player_id][color] += token_array[color]
                 self.tokens[color] -= token_array[color]
-            print(f"Player {self.players[player_id]} took tokens: {token_array}")          
+            # print(f"Player {self.players[player_id]} took tokens: {token_array}")          
             return True
         else:
             return False
@@ -86,7 +86,7 @@ class SplendorGame:
                     self.board[tier_index][col_index] = self.cards[tier_index][0]
                     temp = self.cards[tier_index][0]
                     self.cards[tier_index].pop(0)
-        print(f"New Card: {temp}")
+        # print(f"New Card: {temp}")
         return True
    
     def setupBoard(self):
@@ -108,9 +108,10 @@ class SplendorGame:
         round = 0
         print(f"Players {self.players}")
         while True:
+            if round > 100: return False
             round += 1
             # print(len(self.cards[0]))
-            print(f"\nTurn {round}")
+            # print(f"\nTurn {round}")
             for player_index, player in enumerate(self.players, start=0):
                 self.active_player = player
                 if player == "Bot":
@@ -122,7 +123,10 @@ class SplendorGame:
             self.update_players_points()
             for player_index, points in enumerate(self.players_points, start=0):
                 if points >= self.points: 
-                    print(f"Game has been ended, {self.players[player_index]}")
+                    return {"Player": self.active_player, "Points": points, "Rounds": round, "Cards": self.players_cards[player_index]}
+                    # print(f"Game has been ended, {self.players[player_index]}")
+                    # print(f"Points: {self.players_points}")
+                    # print(f"Round: {round}")
 
                     return True
             # if round > 5: break
@@ -288,16 +292,16 @@ class SplendorGame:
             self.tokens[token_id] += 1
             discarded = [0, 0, 0, 0, 0]
             discarded[token_id] = 1
-            print(f"Player {self.players[player_id]} discarded tokens: {discarded}")
+            # print(f"Player {self.players[player_id]} discarded tokens: {discarded}")
             return True
         else:
             return False
 
     def botTurn(self, player_id):    
         # debug
-        self.printPlayersTokens()
-        self.printPlayersCards()
-        self.printPlayersDiscounts()
+        # self.printPlayersTokens()
+        # self.printPlayersCards()
+        # self.printPlayersDiscounts()
 
         # parameters 
         token_value = [0, 0, 0, 0, 0]
@@ -316,13 +320,16 @@ class SplendorGame:
         
         for tier in range(0, 3): # calculate focus on cards
             for col in range(0, 4):
-                t1 = ((self.discount_value + self.board[tier][col][0]) / sum(self.board[tier][col][1:][:-1])) # discount val + vps / sum of tokens
+                t1 = ((self.discount_value + self.board[tier][col][0]) / max(1,sum(self.board[tier][col][1:][:-1]))) # discount val + vps / sum of tokens
                 t2 = sum([((qty-min(sum([1 for card in self.players_cards[player_id] if card[-1] == token_id+1]),self.board[tier][col][token_id+1]))**2)*self.hard_to_buy for token_id, qty in enumerate(self.board[tier][col][1:][:-1], start=0)]) # sum of particular (tokens qty-discounts)^2
                 t3 = sum([min(sum([1 for card in self.players_cards[player_id] if card[-1] == token_id+1]),self.board[tier][col][token_id+1]) for token_id in range(0,5)])*self.owned_discount # sum of owned discounts
                 focus[tier*4+col][-1] = t1 - t2 + t3
         
         focus = sorted(focus, key=lambda x: x[2], reverse=True)  
-        focus = focus[:6]
+        avg_score = sum(x[2] for x in focus) / len(focus)
+        focus = [x for x in focus if x[2] > avg_score]
+        # print(focus)
+        # focus = focus[:6]
 
         self.discount_value *= self.discount_value_in_time
 
@@ -388,32 +395,33 @@ class SplendorGame:
             for i in indexes_to_take:
                 tokens_to_take[i] = 1
             if self.take_tokens(player_id, tokens_to_take):
-                return True    
+                placeholder = 0  
             else:
                 while True:
                     random_tokens = [0] * 2 + [1] * 3
                     random.shuffle(random_tokens)
                     if self.take_tokens(player_id, random_tokens):
-                        # check if has too many tokens
-                        while True:
-                            discard = False
-                            if sum(self.players_tokens[player_id]) <= 10:
-                                return True   
-                            else:
-                                tokens_random = list(range(5))
-                                random.shuffle(tokens_random)
-                                for token in tokens_random:
-                                    if self.players_tokens[player_id][token] > 0 and tokens_to_take[token] == 0:
-                                        self.discardToken(player_id,token)
-                                        discard = True
-                                        break
+                        break
+            # check if has too many tokens          
+            while True:
+                discard = False
+                if sum(self.players_tokens[player_id]) <= 10:
+                    return True   
+                else:
+                    tokens_random = list(range(5))
+                    random.shuffle(tokens_random)
+                    for token in tokens_random:
+                        if self.players_tokens[player_id][token] > 0 and tokens_to_take[token] == 0:
+                            self.discardToken(player_id,token)
+                            discard = True
+                            break
 
-                                if discard: continue
-                                
-                                token_focus.reverse()
-                                for token in token_focus:
-                                    if self.discardToken(player_id,token[0]):
-                                        break
+                    if discard: continue
+                    
+                    token_focus.reverse()
+                    for token in token_focus:
+                        if self.discardToken(player_id,token[0]):
+                            break
                                     
                                 
                                     
